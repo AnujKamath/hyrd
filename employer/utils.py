@@ -1,236 +1,357 @@
-import os
+from google import genai
+from google.genai import types
+from pydantic import BaseModel
+from typing import Optional, List
+import pathlib
+from sentence_transformers import SentenceTransformer, util
 import spacy
+import dateparser
 import re
-from docx import Document
+from typing import List, Dict
+import os 
 
-# Load spaCy model
+class RequirementSchema(BaseModel):
+    educational: Optional[str] = None
+    technical: Optional[str] = None
+    experience: Optional[str] = None
+
+class JobSchema(BaseModel):
+    job_title: Optional[str] = None
+    job_type: Optional[str] = None
+    about_the_company: Optional[str] = None
+    job_summary: Optional[str] = None
+    location: Optional[str] = None
+    compensation: Optional[str] = None
+    responsibilities: Optional[List[str]] = None
+    requirements: Optional[RequirementSchema] = None
+    preferred_qualifications: Optional[List[str]] = None
+
+class Location(BaseModel):
+    address: Optional[str] = None
+    postal_code: Optional[str] = None
+    city: Optional[str] = None
+    country_code: Optional[str] = None
+    region: Optional[str] = None
+
+class Profile(BaseModel):
+    network: Optional[str] = None
+    username: Optional[str] = None
+    url: Optional[str] = None
+
+class Basics(BaseModel):
+    name: Optional[str] = None
+    label: Optional[str] = None
+    image: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    url: Optional[str] = None
+    summary: Optional[str] = None
+    location: Optional[Location] = None
+    profiles: Optional[List[Profile]] = None
+
+class Work(BaseModel):
+    name: Optional[str] = None
+    position: Optional[str] = None
+    url: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    summary: Optional[str] = None
+    highlights: Optional[List[str]] = None
+
+class Volunteer(BaseModel):
+    organization: Optional[str] = None
+    position: Optional[str] = None
+    url: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    summary: Optional[str] = None
+    highlights: Optional[List[str]] = None
+
+class Education(BaseModel):
+    institution: Optional[str] = None
+    url: Optional[str] = None
+    area_of_study: Optional[str] = None
+    study_type: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    score: Optional[str] = None
+    courses: Optional[List[str]] = None
+
+class Award(BaseModel):
+    title: Optional[str] = None
+    date: Optional[str] = None
+    awarder: Optional[str] = None
+    summary: Optional[str] = None
+
+class Certificate(BaseModel):
+    name: Optional[str] = None
+    date: Optional[str] = None
+    issuer: Optional[str] = None
+    url: Optional[str] = None
+
+class Publication(BaseModel):
+    name: Optional[str] = None
+    publisher: Optional[str] = None
+    release_date: Optional[str] = None
+    url: Optional[str] = None
+    summary: Optional[str] = None
+
+class Skill(BaseModel):
+    name: Optional[str] = None
+    level: Optional[str] = None
+    keywords: Optional[List[str]] = None
+
+class Language(BaseModel):
+    language: Optional[str] = None
+    fluency: Optional[str] = None
+
+class Interest(BaseModel):
+    name: Optional[str] = None
+    keywords: Optional[List[str]] = None
+
+class Reference(BaseModel):
+    name: Optional[str] = None
+    reference: Optional[str] = None
+
+class Project(BaseModel):
+    name: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    description: Optional[str] = None
+    highlights: Optional[List[str]] = None
+    url: Optional[str] = None
+
+class Resume(BaseModel):
+    basics: Optional[Basics] = None
+    work: Optional[List[Work]] = None
+    volunteer: Optional[List[Volunteer]] = None
+    education: Optional[List[Education]] = None
+    awards: Optional[List[Award]] = None
+    certificates: Optional[List[Certificate]] = None
+    publications: Optional[List[Publication]] = None
+    skills: Optional[List[Skill]] = None
+    languages: Optional[List[Language]] = None
+    interests: Optional[List[Interest]] = None
+    references: Optional[List[Reference]] = None
+    projects: Optional[List[Project]] = None
+
+
+jd_prompt = """You are provided with a PDF of a Job Description and a schema. Your objective is to extract the relevant structured data from the text and format it as a JSON object. Ensure that the extracted data aligns strictly with the given schema. If any information is missing or not explicitly stated, leave the corresponding field empty or null. Aim to capture as much detail as possible from the text."""
+def extract_job_description(pdf_path, prompt=jd_prompt):
+    client = genai.Client(api_key="AIzaSyADWAdw5IonFBGhA0uORz_LDkVR4CXdVws")
+    filepath = pathlib.Path(pdf_path)
+
+    response = client.models.generate_content(
+        model="gemini-2.0-flash",
+        config=types.GenerateContentConfig(
+            response_mime_type='application/json',
+            response_schema=JobSchema
+        ),
+        contents=[
+            types.Part.from_bytes(
+                data=filepath.read_bytes(),
+                mime_type='application/pdf',
+            ),
+            prompt
+        ]
+    )
+    data: JobSchema = response.parsed
+    return data.model_dump()
+
+
+resume_prompt = """You are provided with a PDF of a Resume and a schema. Your objective is to extract the relevant structured data from the text and format it as a JSON object. Ensure that the extracted data aligns strictly with the given schema. If any information is missing or not explicitly stated, leave the corresponding field empty or null. Aim to capture as much detail as possible from the text."""
+def extract_resume(pdf_path, prompt=resume_prompt):
+    client = genai.Client(api_key="AIzaSyADWAdw5IonFBGhA0uORz_LDkVR4CXdVws")
+    filepath = pathlib.Path(pdf_path)
+
+    response = client.models.generate_content(
+        model="gemini-2.0-flash",
+        config=types.GenerateContentConfig(
+            response_mime_type='application/json',
+            response_schema=Resume
+        ),
+        contents=[
+            types.Part.from_bytes(
+                data=filepath.read_bytes(),
+                mime_type='application/pdf',
+            ),
+            prompt
+        ]
+    )
+    data: Resume = response.parsed
+    return data.model_dump()
+
+job_description=extract_job_description('/content/Software Engineer Intern.pdf')
+
+resumes = [extract_resume(os.path.join('/content/', res)) for res in os.listdir('/content/') if res.endswith('.pdf')]
+
+# Initialize models
+SEMANTIC_MODEL = SentenceTransformer("all-mpnet-base-v2")
 nlp = spacy.load("en_core_web_sm")
 
-def clean_text(text):
-    """Clean up extracted text by fixing common PDF extraction issues"""
-    # First, normalize newlines
-    text = text.replace('\r\n', '\n').replace('\r', '\n')
-    
-    # Fix missing spaces between words (camelCase issues like "SuperAGIispioneeringAI")
-    text = re.sub(r'([a-z])([A-Z])', r'\1 \2', text)
-    
-    # Fix merged words by inserting spaces between lowercase and uppercase sequences
-    text = re.sub(r'([a-z])([A-Z][a-z])', r'\1 \2', text)
-    
-    # Normalize whitespace within lines
-    text = re.sub(r'[ \t]+', ' ', text)
-    
-    # Remove excessive newlines but preserve paragraph breaks
-    text = re.sub(r'\n{3,}', '\n\n', text)
-    
-    return text.strip()
+class ResumeMatcher:
+    def __init__(self):
+        self.weights = {
+            'title': 0.15,
+            'summary': 0.15,
+            'responsibilities': 0.20,
+            'requirements': 0.20,
+            'skills': 0.15,
+            'experience': 0.10,
+            'education': 0.05,
+        }
+        
+    def preprocess_text(self, text: str) -> str:
+        """Clean and normalize text input."""
+        if not text:
+            return ""
+        text = re.sub(r'[^\w\s-]', '', text.lower())
+        text = re.sub(r'\s+', ' ', text).strip()
+        return text
 
-def extract_text_from_pdf(pdf_file):
-    """Extract text from PDF with improved handling for structured documents"""
-    try:
-        # Use PyMuPDF for better extraction
-        import fitz
-        doc = fitz.open(stream=pdf_file.read(), filetype="pdf")
-        
-        text = ""
-        for page_num in range(len(doc)):
-            page = doc[page_num]
-            page_text = page.get_text()
-            text += page_text + "\n"
-        
-        doc.close()
-        
-        # Print raw text for debugging
-        print(f"Raw extracted text (first 200 chars): {text[:200]}...")
-        
-        # Apply text cleaning
-        cleaned_text = clean_text(text)
-        print(f"Cleaned text (first 200 chars): {cleaned_text[:200]}...")
-        
-        # Process sections for better extraction
-        sections = parse_sections(cleaned_text)
-        
-        # Format the text with clear section markers for better extraction
-        structured_text = format_structured_text(cleaned_text, sections)
-        
-        print(f"Structured text created with {len(sections)} identified sections")
-        return structured_text
-        
-    except Exception as e:
-        print(f"Error in PyMuPDF extraction: {str(e)}")
-        # Fallback to PyPDF2
-        import PyPDF2
-        pdf_reader = PyPDF2.PdfReader(pdf_file)
-        text = ""
-        for page in pdf_reader.pages:
-            text += page.extract_text() + "\n"
-        return clean_text(text)
+    def extract_entities(self, text: str) -> Dict:
+        """Extract skills, education, and locations using spaCy NER."""
+        doc = nlp(text)
+        return {
+            'skills': list(set([ent.text for ent in doc.ents if ent.label_ == 'SKILL'])),
+            'degrees': list(set([ent.text for ent in doc.ents if ent.label_ == 'DEGREE'])),
+            'locations': list(set([ent.text for ent in doc.ents if ent.label_ == 'GPE']))
+        }
 
-def parse_sections(text):
-    """Parse document sections from text"""
-    sections = {}
-    
-    # Look for common section headers
-    section_patterns = [
-        (r'(?:Job|Position)\s*Title[:\s]+([^\n]+)', 'title'),
-        (r'Software\s+Engineer\s+Intern', 'title'),  # Specific title from the example PDF
-        (r'Location[:\s]+([^\n]+)', 'location'),
-        (r'About\s+(?:the\s+)?Company[:\s]+(.*?)(?=\n\s*\n|\n\s*[A-Z])', 'about_company'),
-        (r'About\s+SuperAGI[:\s]+(.*?)(?=\n\s*\n|\n\s*[A-Z])', 'about_company'),  # Specific match
-        (r'Job\s+(?:Overview|Summary|Description)[:\s]+(.*?)(?=\n\s*\n|\n\s*[A-Z])', 'summary'),
-        (r'Responsibilities[:\s]+(.*?)(?=\n\s*\n|\n\s*[A-Z])', 'responsibilities'),
-        (r'(?:Requirements|Qualifications)[:\s]+(.*?)(?=\n\s*\n|\n\s*[A-Z])', 'requirements'),
-        (r'Technical\s+(?:Requirements|Skills)[:\s]+(.*?)(?=\n\s*\n|\n\s*[A-Z])', 'technical_requirements'),
-        (r'Educational\s+Requirements[:\s]+(.*?)(?=\n\s*\n|\n\s*[A-Z])', 'educational_requirements'),
-        (r'Experience[:\s]+(.*?)(?=\n\s*\n|\n\s*[A-Z])', 'experience'),
-        (r'(?:Preferred|Desired)\s+Qualifications[:\s]+(.*?)(?=\n\s*\n|\n\s*[A-Z])', 'preferred_qualifications'),
-        (r'Compensation|Salary|CTC[:\s]+([^\n]+)', 'compensation'),
-    ]
-    
-    for pattern, section_name in section_patterns:
-        match = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
-        if match:
-            sections[section_name] = match.group(1).strip()
-            print(f"Found section {section_name}: {sections[section_name][:50]}...")
-    
-    # Look for numbered responsibilities
-    if 'responsibilities' not in sections:
-        resp_match = re.search(r'Responsibilities[:\s]+(?:\n\s*\d+\.\s+.*)+', text, re.IGNORECASE | re.DOTALL)
-        if resp_match:
-            sections['responsibilities'] = resp_match.group(0).replace('Responsibilities:', '').strip()
-    
-    return sections
+    def calculate_experience(self, work_history: List[Dict]) -> float:
+        """Calculate total years of experience with date parsing."""
+        total_days = 0
+        for position in work_history:
+            start = dateparser.parse(position.get('Start Date', ''))
+            end = dateparser.parse(position.get('End Date', '') or 'now')
+            if start and end:
+                total_days += (end - start).days
+        return round(total_days / 365.25, 1)
 
-def format_structured_text(text, sections):
-    """Format text with clear section markers for better extraction"""
-    structured_text = text
-    
-    # Add section markers at the beginning
-    for section_name, content in sections.items():
-        marker = f"\n\n--- {section_name.upper()} ---\n\n"
-        structured_text = f"{structured_text}\n{marker}{content}"
-    
-    return structured_text
+    def calculate_similarity(self, text1: str, text2: str) -> float:
+        """Calculate semantic similarity score using SBERT."""
+        emb1 = SEMANTIC_MODEL.encode(self.preprocess_text(text1))
+        emb2 = SEMANTIC_MODEL.encode(self.preprocess_text(text2))
+        return util.pytorch_cos_sim(emb1, emb2).item()
 
-def extract_text_from_docx(docx_file):
-    doc = Document(docx_file)
-    text = ""
-    for paragraph in doc.paragraphs:
-        text += paragraph.text + "\n"
-    return text
+    def match_job_resume(self, job: Dict, resume: Dict) -> Dict:
+        """Main matching function with hybrid scoring."""
+        
+        # Preprocess job description sections
+        job_text = {
+            "title": self.preprocess_text(job.get("Job Title", "")),
+            "summary": self.preprocess_text(job.get("Job Summary", "")),
+            "responsibilities": self.preprocess_text(job.get("Responsibilities", "")),
+            "requirements": self.preprocess_text(
+                " ".join([
+                    job.get("Requirements", {}).get("Educational", ""),
+                    job.get("Requirements", {}).get("Technical", ""),
+                    job.get("Requirements", {}).get("Experience (Years of experience)", "")
+                ])
+            ),
+            "preferred": self.preprocess_text(job.get("Preferred Qualifications", "")),
+            "location": self.preprocess_text(job.get("Location", "")),
+        }
 
-def extract_text_from_document(document):
-    print(f"Processing document: {document.name}")
-    file_extension = os.path.splitext(document.name)[1].lower()
-    
-    if file_extension == '.pdf':
-        return extract_text_from_pdf(document)
-    elif file_extension == '.docx':
-        return extract_text_from_docx(document)
-    else:
-        raise ValueError(f"Unsupported file format: {file_extension}")
+        # Preprocess resume sections
+        resume_text = {
+            "summary": self.preprocess_text(resume.get("Basics", {}).get("Summary", "")),
+            "work": self.preprocess_text(
+                " ".join([
+                    work.get("Summary", "") + " ".join(work.get("Highlights", [])) 
+                    for work in resume.get("Work", [])
+                ])
+            ),
+            "education": self.preprocess_text(
+                " ".join([
+                    edu.get("Area of Study", "") + edu.get("Study Type", "") 
+                    for edu in resume.get("Education", [])
+                ])
+            ),
+            "skills": self.preprocess_text(
+                " ".join([skill.get("Name", "") for skill in resume.get("Skills", [])])
+            ),
+        }
 
-def extract_job_details(text):
-    """Extract job details with improved section recognition"""
-    job_details = {
-        'title': '',
-        'about_company': '',
-        'summary': '',
-        'responsibilities': '',
-        'educational_requirements': '',
-        'technical_requirements': '',
-        'experience_years': None,
-        'preferred_qualifications': '',
-        'location': '',
-        'compensation': '',
-    }
-    
-    # Extract from structured sections
-    section_mappings = {
-        'TITLE': 'title',
-        'LOCATION': 'location',
-        'ABOUT_COMPANY': 'about_company',
-        'SUMMARY': 'summary',
-        'RESPONSIBILITIES': 'responsibilities',
-        'REQUIREMENTS': None,  # Process this specially to split into technical/educational
-        'TECHNICAL_REQUIREMENTS': 'technical_requirements',
-        'EDUCATIONAL_REQUIREMENTS': 'educational_requirements',
-        'EXPERIENCE': None,  # Process this specially to extract years
-        'PREFERRED_QUALIFICATIONS': 'preferred_qualifications',
-        'COMPENSATION': 'compensation',
-    }
-    
-    for section_name, field_name in section_mappings.items():
-        pattern = rf'--- {section_name} ---\s*\n\s*(.*?)(?=\n\s*---|$)'
-        match = re.search(pattern, text, re.DOTALL)
-        if match and field_name:
-            job_details[field_name] = match.group(1).strip()
-    
-    # If we couldn't find a title in the sections, look for it directly
-    if not job_details['title']:
-        # Try to find Software Engineer Intern or similar titles
-        title_match = re.search(r'Software\s+Engineer\s+Intern', text, re.IGNORECASE)
-        if title_match:
-            job_details['title'] = title_match.group(0).strip()
-    
-    # If we don't have location yet, look for it directly
-    if not job_details['location']:
-        location_match = re.search(r'Location[:\s]+([^\n]+)', text, re.IGNORECASE)
-        if location_match:
-            job_details['location'] = location_match.group(1).strip()
-    
-    # Extract About the Company if we don't have it
-    if not job_details['about_company']:
-        about_match = re.search(r'About\s+(?:the\s+)?Company[:\s]+(.*?)(?=\n\s*\n|\n\s*[A-Z])', text, re.IGNORECASE | re.DOTALL)
-        if about_match:
-            job_details['about_company'] = about_match.group(1).strip()
+        # Calculate individual scores using semantic similarity and overlap
+        scores = {
+            'title': self.calculate_similarity(job_text['title'], resume_text['summary']) * 100,
             
-        # Try specific pattern for the example PDF
-        about_match = re.search(r'About\s+SuperAGI[:\s]+(.*?)(?=\n\s*\n|\n\s*[A-Z]|\s*Job\s+Overview)', text, re.IGNORECASE | re.DOTALL)
-        if about_match and not job_details['about_company']:
-            job_details['about_company'] = about_match.group(1).strip()
-    
-    # Extract Job Summary if missing
-    if not job_details['summary']:
-        summary_match = re.search(r'Job\s+(?:Overview|Summary|Description)[:\s]+(.*?)(?=\n\s*\n|\n\s*[A-Z]|\s*Responsibilities)', text, re.IGNORECASE | re.DOTALL)
-        if summary_match:
-            job_details['summary'] = summary_match.group(1).strip()
-    
-    # Extract or split technical requirements
-    if not job_details['technical_requirements']:
-        # First look for obvious technical requirements sections
-        tech_match = re.search(r'Technical\s+(?:Requirements|Skills)[:\s]+(.*?)(?=\n\s*\n|\n\s*[A-Z])', text, re.IGNORECASE | re.DOTALL)
-        if tech_match:
-            job_details['technical_requirements'] = tech_match.group(1).strip()
-        # If not found, try to extract from responsibilities
-        elif job_details['responsibilities']:
-            tech_skills = []
-            resp_lines = job_details['responsibilities'].split('\n')
+            'summary': self.calculate_similarity(job_text['summary'], resume_text['summary']) * 100,
+
+            'responsibilities': self.calculate_similarity(job_text['responsibilities'], resume_text['work']) * 100,
+
+            'requirements': self.calculate_similarity(job_text['requirements'], resume_text['work']) * 100,
+
+            'skills': len(set(job_text['requirements'].split()) & set(resume_text['skills'].split())) / 
+                      len(job_text['requirements'].split()) * 100 if job_text['requirements'] else 0,
+
+            'experience': min(
+                self.calculate_experience(resume.get('Work', [])) / 
+                float(job.get('Requirements', {}).get('Experience (Years of experience)', 1)) * 100, 
+                100
+            ),
+
+            'education': 100 if any(
+                edu in job.get('Requirements', {}).get('Educational', '') 
+                for edu in resume_text['education'].split()
+            ) else 0,
+        }
+
+        # Calculate weighted score
+        weighted_score = sum(
+            scores[category] * weight 
+            for category, weight in self.weights.items()
+        )
+
+        # Generate missing items report
+        missing = {
+            'skills': list(set(job_text['requirements'].split()) - set(resume_text['skills'].split())),
+            'education': job.get('Requirements', {}).get('Educational', '') if not scores['education'] else [],
+            'experience_gap': max(
+                float(job.get('Requirements', {}).get('Experience (Years of experience)', 0)) - 
+                self.calculate_experience(resume.get('Work', [])), 
+                0
+            )
+        }
+
+        return {
+            'score': round(weighted_score, 2),
+            'details': scores,
+            'missing': missing
+        }
+
+    def rank_resumes(self, job: Dict, resumes: List[Dict]) -> List[Dict]:
+        """Rank resumes by match quality."""
+        
+        ranked = []
+        
+        for resume in resumes:
             
-            for line in resp_lines:
-                if re.search(r'software|develop|code|program|technical|algorithm|debug|test', line, re.IGNORECASE):
-                    tech_skills.append(line.strip())
-            
-            if tech_skills:
-                job_details['technical_requirements'] = '\n'.join(tech_skills)
-    
-    # Try to extract experience years from the text
-    if not job_details['experience_years']:
-        exp_match = re.search(r'(\d+)\+?\s*years?\s+(?:of\s+)?experience', text, re.IGNORECASE)
-        if exp_match:
-            try:
-                job_details['experience_years'] = int(exp_match.group(1))
-            except ValueError:
-                pass
-    
-    # Remove redundant information
-    # If about_company contains the location info, clean it up
-    if job_details['location'] and job_details['about_company'].startswith(job_details['location']):
-        job_details['about_company'] = job_details['about_company'][len(job_details['location']):].strip()
-    
-    # Print what was found for debugging
-    for key, value in job_details.items():
-        if value:
-            print(f"Final {key}: {value[:50]}...")
-    
-    return job_details
+            result = self.match_job_resume(job, resume)
+            ranked.append({
+                'name': resume.get('Basics', {}).get('Name', 'Unnamed'),
+                'score': result['score'],
+                'details': result['details'],
+                'missing': result['missing']
+            })
+
+        # Sort resumes by score in descending order
+        ranked = sorted(ranked, key=lambda x: x['score'], reverse=True)
+
+        return ranked
+
+
+    # Instantiate the matcher
+matcher = ResumeMatcher()
+
+# Rank resumes for the given job description
+ranked_resumes = matcher.rank_resumes(job_description, resumes)
+
+# Display results
+print("Resume Ranking Results:\n")
+for idx, candidate in enumerate(ranked_resumes, 1):
+    print(f"{idx}. {candidate['name']} - Score: {candidate['score']}%")
+    print(f"Details: {candidate['details']}")
+    print(f"Missing: {candidate['missing']}\n")
+
