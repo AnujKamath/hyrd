@@ -1,11 +1,55 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
-from .models import Company, Job
-from .forms import CompanyForm, JobForm
+from .models import Company, Job, User
+from .forms import CompanyForm, JobForm, LoginForm
 from .utils import extract_text_from_document, extract_job_details
+from django.contrib.auth.decorators import login_required
 import re
+import json
+
+def login_view(request):
+    if request.method == 'POST':
+        form = LoginForm(request.POST)
+        print(request)
+        print(request.GET)
+        if form.is_valid():
+            email = form.cleaned_data['email']
+            password = form.cleaned_data['password']
+
+            try:
+                user = User.objects.get(email=email)
+                if password == user.password:  # Plain text password comparison (NOT RECOMMENDED)
+                    request.session['user_id'] = user.id
+                    if user.is_employer:
+                        return redirect('employer:company_list')
+                    else:
+                        return redirect('employer:candidate_page', candidate_id=user.candidate_id)
+
+                else:
+                    form.add_error(None, "Invalid email or password.")
+
+            except User.DoesNotExist:
+                form.add_error(None, "Invalid email or password.")
+        return render(request, 'LoginPage.html', {'form': form})
+    else:
+        form = LoginForm()
+        return render(request, 'LoginPage.html', {'form': form})
+
+# @login_required
+def candidate_page(request, candidate_id):
+    print(f"candidate_id: {candidate_id}")
+
+    user = get_object_or_404(User, candidate_id=candidate_id)
+
+    if user.is_employer:
+        return redirect('employer:company_list')
+
+    if user.id != request.session['user_id']:
+        return HttpResponse("Unauthorized", status=401)
+
+    return render(request, 'candidate/candidatePage.html', {'user': user})
 
 def company_list(request):
     companies = Company.objects.all().order_by('name')

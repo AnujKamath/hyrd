@@ -28,6 +28,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+LOGIN_URL = '/employer/login/'  # Or whatever your login URL is
 
 # Application definition
 
