@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block title %}Jobs at {{ company.name }} - HYRD{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1>Jobs at {{ company.name }}</h1>
+    </div>
+    <div class="col-auto">
+        <a href="{% url 'employer:job_create' company.id %}" class="btn btn-primary">Add New Job</a>
+    </div>
+</div>
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'employer:company_list' %}">Companies</a></li>
+        <li class="breadcrumb-item active">{{ company.name }}</li>
+    </ol>
+</nav>
+
+{% if jobs %}
+    <div class="list-group">
+        {% for job in jobs %}
+            <div class="list-group-item">
+                <div class="d-flex w-100 justify-content-between">
+                    <h5 class="mb-1">{{ job.title }}</h5>
+                    <small>Updated: {{ job.updated_at|date:"M d, Y" }}</small>
+                </div>
+                <p class="mb-1">{{ job.summary|truncatewords:30 }}</p>
+                <div class="d-flex justify-content-between align-items-center mt-2">
+                    <small>
+                        {% if job.location %}Location: {{ job.location }}{% endif %}
+                        {% if job.experience_years %} • Experience: {{ job.experience_years }} years{% endif %}
+                        {% if job.compensation %} • Compensation: {{ job.compensation }}{% endif %}
+                    </small>
+                    <a href="{% url 'employer:job_edit' company.id job.id %}" class="btn btn-sm btn-outline-primary">Edit</a>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="alert alert-info">
+        No jobs found for this company. Add your first job listing.
+    </div>
+{% endif %}
+{% endblock %}
