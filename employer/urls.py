@@ -1,12 +1,13 @@
 from django.urls import path
 from . import views
-from django.contrib.auth import views as auth_views  # Import Django's built-in auth views
+from django.contrib.auth import views as auth_views 
 
 
 app_name = 'employer'
 
 urlpatterns = [
     path('login/', views.login_view, name='login'),
+    path('register/', views.register_view, name='register'), 
     # path('logout/', auth_views.LogoutView.as_view(next_page='/employer/login/'), name='logout'),
     path('candidate/<str:candidate_id>/', views.candidate_page, name='candidate_page'),
     path('companies/', views.company_list, name='company_list'),
@@ -17,4 +18,3 @@ urlpatterns = [
     path('process-document-extract/', views.process_document_extract, name='process_document_extract'),
 ]
 
-print(urlpatterns) #add this line.

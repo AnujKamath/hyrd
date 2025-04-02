@@ -46,3 +46,11 @@ class LoginForm(forms.Form):
         super().__init__(*args, **kwargs)
         for field_name, field in self.fields.items():
             field.widget.attrs['class'] = 'form-control'
+
+class RegisterForm(forms.Form):
+    email = forms.EmailField()
+    password = forms.CharField(widget=forms.PasswordInput)
+    first_name = forms.CharField(required=False)
+    last_name = forms.CharField(required=False)
+    contact_number = forms.CharField(required=False)
+    is_employer = forms.BooleanField(required=False)

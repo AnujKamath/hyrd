@@ -2,12 +2,14 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
-from .models import Company, Job, User
-from .forms import CompanyForm, JobForm, LoginForm
+from .models import Company, Job, User,AppliedJob
+from .forms import CompanyForm, JobForm, LoginForm, RegisterForm
 from .utils import extract_text_from_document, extract_job_details
 from django.contrib.auth.decorators import login_required
 import re
 import json
+
+from django.db.models import Max
 
 def login_view(request):
     if request.method == 'POST':
@@ -37,9 +39,50 @@ def login_view(request):
         form = LoginForm()
         return render(request, 'LoginPage.html', {'form': form})
 
+def register_view(request):
+    print("Register view called") #add this
+    if request.method == 'POST':
+        print("Request method is POST") #add this
+        form = RegisterForm(request.POST)
+        if form.is_valid():
+            print("Form is valid") #add this
+            email = form.cleaned_data['email']
+            password = form.cleaned_data['password']
+            first_name = form.cleaned_data['first_name']
+            last_name = form.cleaned_data['last_name']
+            contact_number = form.cleaned_data['contact_number']
+            is_employer = form.cleaned_data['is_employer']
+
+            last_candidate = User.objects.aggregate(Max('candidate_id'))['candidate_id__max']
+
+            if last_candidate:
+                new_candidate_id = "CAND" + str(int(last_candidate[4:]) + 1)
+            else:
+                new_candidate_id = "CAND100"
+
+            User.objects.create(
+                email=email,
+                password=password,
+                first_name=first_name,
+                last_name=last_name,
+                contact_number=contact_number,
+                is_employer=is_employer,
+                candidate_id=new_candidate_id,
+            )
+            print(f"User created: {email}") #add this
+            return redirect('employer:login')
+        else:
+            print("Form is invalid") #add this
+            print(form.errors) #add this
+            return render(request, 'LoginPage.html', {'form': form})
+    else:
+        form = RegisterForm()
+    return render(request, 'LoginPage.html', {'form': form})
+
+
 # @login_required
 def candidate_page(request, candidate_id):
-    print(f"candidate_id: {candidate_id}")
+    # print(f"candidate_id: {candidate_id}")
 
     user = get_object_or_404(User, candidate_id=candidate_id)
 
@@ -48,8 +91,11 @@ def candidate_page(request, candidate_id):
 
     if user.id != request.session['user_id']:
         return HttpResponse("Unauthorized", status=401)
+    applied_jobs = AppliedJob.objects.filter(candidate=user)
+    other_jobs = Job.objects.exclude(appliedjob__candidate=user) 
+    return render(request, 'candidate/candidatePage.html', {'applied_jobs': applied_jobs, 'other_jobs': other_jobs, 'user': user})
 
-    return render(request, 'candidate/candidatePage.html', {'user': user})
+    # return render(request, 'candidate/candidatePage.html', {'user': user})
 
 def company_list(request):
     companies = Company.objects.all().order_by('name')

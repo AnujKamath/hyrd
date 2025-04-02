@@ -41,3 +41,11 @@ class Job(models.Model):
 
     def __str__(self):
         return f"{self.title} at {self.company.name}"
+
+class AppliedJob(models.Model):
+    job = models.ForeignKey(Job, on_delete=models.CASCADE)
+    candidate = models.ForeignKey(User, on_delete=models.CASCADE)
+    status = models.CharField(max_length=50, default='Applied')  # Status: Applied, Interview, Rejected, etc.
+
+    def __str__(self):
+        return f"{self.candidate.first_name} applied for {self.job.title}"
