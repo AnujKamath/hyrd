@@ -21,7 +21,7 @@ whenever i press the current cards, it opens up a minipage telling the number of
 
 
 Databases
-	User(candidate_id, email, first_name, last_name, contact_no, .....)
+	User(candidate_id, email, first_name, last_name, contact_no,is_employee .....)
 	Resumes(candidate_id, skills, .....)
         Company
         Applied_Jobs
