@@ -10,6 +10,8 @@ class User(models.Model):
     date_of_birth = models.DateField(null=True, blank=True)
     is_employer = models.BooleanField(default=False)
     candidate_id = models.CharField(max_length=50, blank=True, null=True)
+    # user_id = models.CharField(max_length=50, blank=True, null=True)
+
 
     def __str__(self):
         return self.email
@@ -24,6 +26,7 @@ class Company(models.Model):
         return self.name
 
 class Job(models.Model):
+    job_id = models.CharField(max_length=50, blank=True, null=True)
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='jobs')
     title = models.CharField(max_length=200)
     about_company = models.TextField(blank=True)
@@ -49,3 +52,14 @@ class AppliedJob(models.Model):
 
     def __str__(self):
         return f"{self.candidate.first_name} applied for {self.job.title}"
+
+class EmployeeJobRelation(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='employer_jobs')
+    job = models.ForeignKey(Job, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'job')  # Prevent duplicate entries
+
+    def __str__(self):
+        return f"{self.user.email} - {self.job.title}"

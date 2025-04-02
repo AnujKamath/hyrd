@@ -2,14 +2,16 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
-from .models import Company, Job, User,AppliedJob
+from .models import Company, Job, User,AppliedJob,EmployeeJobRelation
 from .forms import CompanyForm, JobForm, LoginForm, RegisterForm
 from .utils import extract_text_from_document, extract_job_details
 from django.contrib.auth.decorators import login_required
 import re
 import json
-
+from django.urls import reverse
 from django.db.models import Max
+from django.urls import reverse, NoReverseMatch
+
 
 def login_view(request):
     if request.method == 'POST':
@@ -22,10 +24,10 @@ def login_view(request):
 
             try:
                 user = User.objects.get(email=email)
-                if password == user.password:  # Plain text password comparison (NOT RECOMMENDED)
+                if password == user.password:  
                     request.session['user_id'] = user.id
                     if user.is_employer:
-                        return redirect('employer:company_list')
+                        return redirect('employer:employer_page', candidate_id=user.candidate_id)
                     else:
                         return redirect('employer:candidate_page', candidate_id=user.candidate_id)
 
@@ -40,12 +42,10 @@ def login_view(request):
         return render(request, 'LoginPage.html', {'form': form})
 
 def register_view(request):
-    print("Register view called") #add this
     if request.method == 'POST':
-        print("Request method is POST") #add this
         form = RegisterForm(request.POST)
         if form.is_valid():
-            print("Form is valid") #add this
+            print("Form is valid") 
             email = form.cleaned_data['email']
             password = form.cleaned_data['password']
             first_name = form.cleaned_data['first_name']
@@ -87,7 +87,7 @@ def candidate_page(request, candidate_id):
     user = get_object_or_404(User, candidate_id=candidate_id)
 
     if user.is_employer:
-        return redirect('employer:company_list')
+        return redirect('employer:employer_page', candidate_id=user.candidate_id)
 
     if user.id != request.session['user_id']:
         return HttpResponse("Unauthorized", status=401)
@@ -96,6 +96,56 @@ def candidate_page(request, candidate_id):
     return render(request, 'candidate/candidatePage.html', {'applied_jobs': applied_jobs, 'other_jobs': other_jobs, 'user': user})
 
     # return render(request, 'candidate/candidatePage.html', {'user': user})
+
+def employer_page(request, candidate_id):
+
+    user = get_object_or_404(User, candidate_id=candidate_id)
+
+    if not user.is_employer:
+        return redirect('candidate:candidate_page', candidate_id=user.candidate_id)
+
+    if user.id != request.session['user_id']:
+        return HttpResponse("Unauthorized", status=401)
+
+    posted_jobs = Job.objects.filter(employeejobrelation__user=user)
+
+    for job in posted_jobs:
+        job.applications_count = job.appliedjob_set.count()  # Assuming you still need this
+
+    return render(request, 'employer/employerPage.html', {'posted_jobs': posted_jobs, 'user': user})
+
+def select_candidates(request, candidate_id, job_id):
+    """View to display candidates for selection."""
+    job = get_object_or_404(Job, id=job_id)
+    applications = AppliedJob.objects.filter(job=job)
+
+    try:
+        user = get_object_or_404(User, candidate_id=candidate_id)
+        print(f"User Candidate ID: {user.candidate_id}")
+        print(f"Job ID: {job.id}")
+
+        try:
+            url = reverse('select_candidates_confirm', kwargs={'candidate_id': candidate_id, 'job_id': job_id})
+            print(f"Resolved URL: {url}")
+        except NoReverseMatch as e:
+            print(f"URL Resolution Error: {e}")
+        
+    except User.DoesNotExist:
+        print(f"User with candidate_id {candidate_id} not found.")
+        return render(request, 'employer/select_candidates.html', {'job': job, 'applications': applications, 'user': None})
+
+    return render(request, 'employer/select_candidates.html', {'job': job, 'applications': applications, 'user': user})
+
+def select_candidates_confirm(request, candidate_id, job_id):
+    """View to confirm and update selected candidates' status."""
+    if request.method == 'POST':
+        selected_candidate_ids = request.POST.getlist('selected_candidates')
+        applications = AppliedJob.objects.filter(job_id=job_id, candidate_id__in=selected_candidate_ids)
+        applications.update(status='Shortlisted')
+        redirect_url = reverse('employer:employer_page', kwargs={'candidate_id': candidate_id})
+        return redirect(redirect_url)
+
+    return HttpResponse("Invalid request", status=400)
 
 def company_list(request):
     companies = Company.objects.all().order_by('name')

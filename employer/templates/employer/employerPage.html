@@ -1,0 +1,94 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/candidatePage.css' %}">
+</head>
+<body>
+    <div class="content">
+        <div class="navbar">
+            <div class="toggle-button" onclick="toggleSidebar()">☰</div>
+            <h2>Employee Dashboard</h2>
+            <div class="user-dropdown">
+                <span class="user-icon">👤</span>
+                <div class="user-dropdown-content">
+                    <a href="#">Profile</a>
+                    <a href="/employer/login/">Sign Out</a>
+                </div>
+            </div>
+        </div>
+        <div class="sidebar">
+            <h2>Menu</h2>
+            <ul class="list-group">
+                <li class="list-group-item">Dashboard</li>
+                <li class="list-group-item">Your Postings</li>
+                <li class="list-group-item">Messages</li>
+                <li class="list-group-item">Settings</li>
+            </ul>
+        </div>
+        <div class="container mt-4">
+            <h1>Welcome, {{ user.first_name }}</h1>
+            <h2 class="mt-4">Your Job Postings</h2>
+            <div class="mb-3">
+                <button class="btn btn-outline-primary">Ongoing</button>
+                <button class="btn btn-outline-success">History</button>
+            </div>
+            <div class="row card-list">
+                {% for job in posted_jobs %}
+                    <div class="col-md-4 mb-3">
+                        <div class="card p-3" onclick="jobCardClick({{ job.id }})">
+                            <h4>{{ job.title }}</h4>
+                            <p>{{ job.company.name }}</p>
+                            <p class="status text-muted">Status: {{ job.status }}</p>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            {% for job in posted_jobs %}
+                <div id="jobDetailsModal{{ job.id }}" class="job-details-modal">
+                    <span class="close-button" onclick="closeJobDetails({{ job.id }})">&times;</span>
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3 class="modal-title">{{ job.title }}</h3>
+                            <p class="company-info">Company: {{ job.company.name }}</p>
+                            <div class="image-placeholder">
+                                <img src="{% static 'job_card.jpeg' %}" alt="Stock" class="stock-image" />
+                            </div>
+                        </div>
+                        <div class="modal-body">
+                            <p>Candidates Applied: {{ job.applications_count }}</p>
+                            <div class="modal-footer">
+                                <button class="btn btn-primary apply-button" onclick="selectCandidates({{ job.id }})">Select Candidates</button>
+                                <button class="btn btn-danger apply-button" onclick="closeRecruitment({{ job.id }})">Close Recruitment</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function toggleSidebar() {
+            document.querySelector('.sidebar').classList.toggle('active');
+            document.querySelector('.content').classList.toggle('sidebar-open');
+        }
+        function jobCardClick(jobId) {
+            document.getElementById(`jobDetailsModal${jobId}`).style.display = 'block';
+        }
+        function closeJobDetails(jobId) {
+            document.getElementById(`jobDetailsModal${jobId}`).style.display = 'none';
+        }
+        function selectCandidates(jobId) {
+            window.location.href = `select_candidates/${jobId}/`;
+        }
+        function closeRecruitment(jobId) {
+            console.log(`Recruitment closed for job ID: ${jobId}`);
+        }
+    </script>
+</body>
+</html>

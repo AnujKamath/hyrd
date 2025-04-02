@@ -1,0 +1,47 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select Candidates</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/candidatePage.css' %}">
+</head>
+<body>
+    <div class="container mt-4">
+        {% if user %}
+            <h1>Select Candidates for {{ job.title }}</h1>
+            <a href="/employer/page/{{ user.candidate_id }}/" class="btn btn-secondary mb-3">Go Back</a>
+
+            <form method="post" action="{% url 'employer:select_candidates_confirm' candidate_id=user.candidate_id job_id=job.id %}">
+                {% csrf_token %}
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Select</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Score</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for application in applications %}
+                            <tr>
+                                <td><input type="checkbox" name="selected_candidates" value="{{ application.candidate.id }}"></td>
+                                <td>{{ application.candidate.first_name }} {{ application.candidate.last_name }}</td>
+                                <td>{{ application.candidate.email }}</td>
+                                <td>{{ application.score }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <button type="submit" class="btn btn-success">Confirm Selection</button>
+            </form>
+        {% else %}
+            <p>User not found.</p>
+        {% endif %}
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
