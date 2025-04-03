@@ -147,6 +147,25 @@ def select_candidates_confirm(request, candidate_id, job_id):
 
     return HttpResponse("Invalid request", status=400)
 
+def create_job(request, candidate_id):
+    """Handles the creation of a new job posting."""
+
+    user = get_object_or_404(User, candidate_id=candidate_id)
+
+    if request.method == 'POST':
+        form = JobForm(request.POST)
+        if form.is_valid():
+            job = form.save(commit=False)
+            job.company = user.employer
+            job.save()
+            EmployeeJobRelation.objects.create(user=user, job=job)
+            return redirect('employer:employer_page', candidate_id=candidate_id)
+    else:
+        form = JobForm()
+
+    return render(request, 'employer/create_job.html', {'form': form, 'user': user})
+
+
 def company_list(request):
     companies = Company.objects.all().order_by('name')
     

@@ -33,6 +33,7 @@
         <div class="container mt-4">
             <h1>Welcome, {{ user.first_name }}</h1>
             <h2 class="mt-4">Your Job Postings</h2>
+            <button id="addJobButton" class="btn btn-primary mb-3">Add Job Posting</button>
             <div class="mb-3">
                 <button class="btn btn-outline-primary">Ongoing</button>
                 <button class="btn btn-outline-success">History</button>
@@ -89,6 +90,9 @@
         function closeRecruitment(jobId) {
             console.log(`Recruitment closed for job ID: ${jobId}`);
         }
+        document.getElementById('addJobButton').addEventListener('click', function() {
+        window.location.href = `create_job/`;
+    });
     </script>
 </body>
 </html>

@@ -10,9 +10,9 @@ cd Hyrd
 
 ### **2. Install Dependencies**  
 ```sh
-npm install
-cd client && npm install
-cd ../server && npm install
+pip install spacy
+python -m spacy download en_core_web_sm
+pip install python-docx
 ```
 
 ### **3. Setup Environment Variables**  
